@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>תוכנית עבודה — גנט</title>
+<style>
+  :root {
+    --easy: #BEE3F5;
+    --medium: #4BA3D3;
+    --hard: #1F5C99;
+    --border: #d7dee6;
+    --text: #1c2b3a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", "Assistant", Arial, sans-serif;
+    margin: 0; padding: 24px;
+    background: #f4f7fa; color: var(--text);
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: #5a6b7d; font-size: 13px; margin-bottom: 16px; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; align-items: center; }
+  .controls .label { font-size: 13px; color: #5a6b7d; margin-inline-start: 8px; }
+  .chip {
+    border: 1px solid var(--border); background: #fff; border-radius: 20px;
+    padding: 5px 14px; font-size: 13px; cursor: pointer; transition: all .15s;
+  }
+  .chip.active { background: var(--text); color: #fff; border-color: var(--text); }
+  .chip .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-inline-end: 6px; vertical-align: -1px; }
+
+  .gantt {
+    background: #fff; border: 1px solid var(--border); border-radius: 12px;
+    overflow-x: auto; padding: 0 0 8px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 300px repeat(6, minmax(90px, 1fr));
+    min-width: 880px;
+  }
+  .head {
+    font-weight: 600; font-size: 13px; text-align: center;
+    padding: 12px 6px; border-bottom: 2px solid var(--border);
+    background: #fafcfe; position: sticky; top: 0;
+  }
+  .head.task-col { text-align: right; padding-inline-start: 16px; }
+
+  .cat-row {
+    grid-column: 1 / -1; font-weight: 700; font-size: 14px;
+    padding: 12px 16px 6px; color: #2a4a68; border-bottom: 1px solid #eef2f6;
+    background: #fafcfe;
+  }
+  .task-name {
+    font-size: 13px; padding: 8px 16px 8px 8px;
+    border-bottom: 1px solid #eef2f6; display: flex; align-items: center;
+  }
+  .cell { border-bottom: 1px solid #eef2f6; border-inline-start: 1px dashed #e6ecf2; }
+  .bar-wrap { position: relative; display: flex; align-items: center; border-bottom: 1px solid #eef2f6; }
+  .bar {
+    height: 22px; border-radius: 6px; width: 100%;
+    margin: 6px 4px; cursor: default; transition: transform .1s, box-shadow .1s;
+  }
+  .bar:hover { transform: scaleY(1.15); box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+  .bar.easy { background: var(--easy); }
+  .bar.medium { background: var(--medium); }
+  .bar.hard { background: var(--hard); }
+
+  .hidden { display: none !important; }
+
+  #tooltip {
+    position: fixed; pointer-events: none; z-index: 10;
+    background: var(--text); color: #fff; font-size: 12.5px;
+    padding: 8px 12px; border-radius: 8px; max-width: 280px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.3); display: none; line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<h1>תוכנית עבודה — גנט (6 חודשים)</h1>
+<div class="sub">רחפו על פס כדי לראות פרטים · לחצו על הצ'יפים לסינון</div>
+
+<div class="controls">
+  <span class="label">רמת קושי:</span>
+  <button class="chip active" data-level="all">הכול</button>
+  <button class="chip" data-level="easy"><span class="dot" style="background:var(--easy)"></span>קל</button>
+  <button class="chip" data-level="medium"><span class="dot" style="background:var(--medium)"></span>בינוני</button>
+  <button class="chip" data-level="hard"><span class="dot" style="background:var(--hard)"></span>קשה</button>
+  <span class="label">קטגוריה:</span>
+  <span id="catChips"></span>
+</div>
+
+<div class="gantt"><div class="grid" id="grid"></div></div>
+<div id="tooltip"></div>
+
+<script>
+const LEVELS = { easy: "קל", medium: "בינוני", hard: "קשה" };
+
+const DATA = [
+  { cat: 'המלצות או"ש', tasks: [
+    { name: "ארון תשלומים - הגדרת ניפדו כערוץ הגשה סטנדרטי", start: 1, end: 1, level: "easy" },
+    { name: "ארון תשלומים - ניתוב פנים ארגוני", start: 1, end: 1, level: "easy" },
+    { name: "מכון לואיס - ייעול בדיקות ובקרות", start: 1, end: 1, level: "easy" },
+    { name: "תהליכי החזרים וזיכויים - איסוף פרטים מוקדם", start: 1, end: 2, level: "easy" },
+    { name: 'מסופי סליקה (השכרה) - הזנה ישירה באתר ע"י הנציג', start: 1, end: 2, level: "easy" },
+  ]},
+  { cat: "פתרון חיצוני OCR", tasks: [
+    { name: "ארון תשלומים - סריקה", start: 1, end: 3, level: "easy" },
+    { name: "נסיעות עובדים - כלי חיצוני", start: 1, end: 3, level: "easy" },
+  ]},
+  { cat: "אוטומציות", tasks: [
+    { name: "מסופי סליקה (מכירה) - השוואת דוחות אוטומטית", start: 1, end: 5, level: "medium" },
+    { name: "נסיעות עובדים - פתרון אוטומציה", start: 1, end: 5, level: "hard" },
+    { name: "הוצאות רכב - פתרון אוטומציה", start: 1, end: 5, level: "hard" },
+  ]},
+  { cat: "התאמת מערכות קיימות", tasks: [
+    { name: "מיפוי ופתרון פערים ניפדו מול פריוריטי", start: 1, end: 6, level: "medium" },
+    { name: "ארון תשלומים - אפיון חוקי ולידציה", start: 1, end: 4, level: "medium" },
+    { name: "ארון תשלומים - תמיכה במגוון תנאי תשלום", start: 1, end: 3, level: "easy" },
+    { name: "ארון תשלומים - קליטת חשבוניות עסקה", start: 1, end: 3, level: "easy" },
+    { name: "התאמות ספקים - פריוריטי", start: 1, end: 2, level: "easy" },
+    { name: "נסיעות עובדים - פריוריטי", start: 1, end: 2, level: "easy" },
+    { name: "חיובים ללקוחות - מספר הקצאה במס הכנסה", start: 1, end: 1, level: "easy" },
+  ]},
+];
+
+const grid = document.getElementById("grid");
+const tooltip = document.getElementById("tooltip");
+
+// header
+let html = '<div class="head task-col">משימה</div>';
+for (let m = 1; m <= 6; m++) html += `<div class="head">חודש ${m}</div>`;
+grid.innerHTML = html;
+
+DATA.forEach((group, gi) => {
+  const catRow = document.createElement("div");
+  catRow.className = "cat-row";
+  catRow.dataset.cat = gi;
+  catRow.textContent = group.cat;
+  grid.appendChild(catRow);
+
+  group.tasks.forEach(t => {
+    const label = document.createElement("div");
+    label.className = "task-name";
+    label.dataset.cat = gi; label.dataset.level = t.level;
+    label.textContent = t.name;
+    grid.appendChild(label);
+
+    for (let m = 1; m <= 6; m++) {
+      const cell = document.createElement("div");
+      cell.dataset.cat = gi; cell.dataset.level = t.level;
+      if (m === t.start) {
+        cell.className = "bar-wrap";
+        cell.style.gridColumn = `${t.start + 1} / ${t.end + 2}`;
+        const bar = document.createElement("div");
+        bar.className = `bar ${t.level}`;
+        bar.addEventListener("mousemove", e => {
+          const dur = t.end - t.start + 1;
+          tooltip.innerHTML = `<b>${t.name}</b><br>${group.cat}<br>` +
+            (dur === 1 ? `חודש ${t.start}` : `חודשים ${t.start}–${t.end}`) +
+            ` (${dur} ${dur === 1 ? "חודש" : "חודשים"}) · קושי: ${LEVELS[t.level]}`;
+          tooltip.style.display = "block";
+          const r = tooltip.getBoundingClientRect();
+          let x = e.clientX - r.width - 14;
+          if (x < 8) x = e.clientX + 14;
+          tooltip.style.left = x + "px";
+          tooltip.style.top = Math.min(e.clientY + 14, innerHeight - r.height - 8) + "px";
+        });
+        bar.addEventListener("mouseleave", () => tooltip.style.display = "none");
+        cell.appendChild(bar);
+        m = t.end; // skip covered columns
+      } else {
+        cell.className = "cell";
+      }
+      grid.appendChild(cell);
+    }
+  });
+});
+
+// category filter chips
+const catChips = document.getElementById("catChips");
+let chipsHtml = '<button class="chip active" data-cat="all">הכול</button>';
+DATA.forEach((g, i) => chipsHtml += `<button class="chip" data-cat="${i}">${g.cat}</button>`);
+catChips.innerHTML = chipsHtml;
+
+let curLevel = "all", curCat = "all";
+
+function applyFilters() {
+  document.querySelectorAll("[data-level]").forEach(el => {
+    if (el.classList.contains("chip")) return;
+    const okL = curLevel === "all" || el.dataset.level === curLevel;
+    const okC = curCat === "all" || el.dataset.cat === curCat;
+    el.classList.toggle("hidden", !(okL && okC));
+  });
+  document.querySelectorAll(".cat-row").forEach(el => {
+    const okC = curCat === "all" || el.dataset.cat === curCat;
+    const hasVisible = curLevel === "all" ||
+      DATA[+el.dataset.cat].tasks.some(t => t.level === curLevel);
+    el.classList.toggle("hidden", !(okC && hasVisible));
+  });
+}
+
+document.querySelectorAll(".chip[data-level]").forEach(ch => ch.addEventListener("click", () => {
+  document.querySelectorAll(".chip[data-level]").forEach(c => c.classList.remove("active"));
+  ch.classList.add("active");
+  curLevel = ch.dataset.level;
+  applyFilters();
+}));
+document.querySelectorAll(".chip[data-cat]").forEach(ch => ch.addEventListener("click", () => {
+  document.querySelectorAll(".chip[data-cat]").forEach(c => c.classList.remove("active"));
+  ch.classList.add("active");
+  curCat = ch.dataset.cat;
+  applyFilters();
+}));
+</script>
+</body>
+</html>
